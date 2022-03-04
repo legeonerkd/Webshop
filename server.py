@@ -1,9 +1,10 @@
 from crypt import methods
-from flask import Flask, request, render_template
+from time import time
+from flask import Flask, request, render_template, jsonify
 from flask_pymongo import PyMongo
-import json
-import flask
 import bson
+from datetime import datetime
+import json
 
 
 app = Flask(__name__, static_url_path='/static')
@@ -15,7 +16,8 @@ shop = shop_mongo.db
 @app.route("/product", methods = ['POST'])
 def add_product():
     product = request.get_json()
-    result = shop.products.insert_one({'name': product['name'], 'price': product['price'], 'description': product['description']})
+    result = shop.products.insert_one({'name': product['name'], 'price': product['price'], 'description': product['description'], 
+                                       'created_at': datetime.today()})
     return str(result.inserted_id)
 
 @app.route("/products/<product_id>")
