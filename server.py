@@ -1,3 +1,4 @@
+from ast import GtE
 from crypt import methods
 from time import time
 from flask import Flask, request, render_template, jsonify
@@ -13,26 +14,60 @@ shop_mongo = PyMongo(app)
 shop = shop_mongo.db
 
 
-@app.route("/product", methods = ['POST'])
+@app.route("/product", methods=['POST'])
 def add_product():
     product = request.get_json()
-    result = shop.products.insert_one({'name': product['name'], 'price': product['price'], 'description': product['description'], 
+    result = shop.products.insert_one({'name': product['name'], 'price': product['price'], 'description': product['description'],
                                        'created_at': datetime.today()})
     return str(result.inserted_id)
 
+
 @app.route("/products/<product_id>")
 def get_product(product_id):
-    product = shop.products.find_one({'_id': bson.ObjectId(product_id)}, {'_id': False})
+    product = shop.products.find_one(
+        {'_id': bson.ObjectId(product_id)}, {'_id': False})
     print(product, type(product))
     return product
 
-@app.route("/products/new_products")
+# ручка - handler
+
+
+@app.route("/products/news")
 def get_news():
     last_3_days = datetime.today() - timedelta(3)
     new_products = []
-    for product in shop.products.find({'created_at': {"$gte" : last_3_days}}):
-        new_products.append(product['name'])
+    for product in shop.products.find({'created_at': {"$gte": last_3_days}}, {'_id': False}):
+        new_products.append(product)
     return str(new_products)
+
+
+@app.route("/products/price")
+def get_by_price_range():
+    products = []
+    min_price = request.args.get('from', type=float)
+    max_price = request.args.get('to', type=float)
+    for product in shop.products.find({'price': {'$gte': min_price, '$lte': max_price}}, {'_id': False}):
+        products.append(product)
+    return str(products)
+
+
+@app.route("/products/average")
+def get_average_price():
+    last_3_days = datetime.today() - timedelta(3)
+    cur = shop.products.aggregate([
+        {
+            '$match': {'created_at': {'$gte': last_3_days}}
+        },
+        {
+            '$group': {'_id': '$category',
+                       'average': {'$avg': '$price'}}
+        },
+    ])
+
+    return str(list(cur))
+
+# PEP8
+
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=8080)
